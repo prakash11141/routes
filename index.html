@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Route Planner</title>
+    <!-- leaflet css -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        width: 100%;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+  </body>
+</html>
+<!-- leaflet js -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="./data/point.js"></script>
+
+<script>
+  const graph = {
+    A: { B: 1, C: 2 },
+    B: { A: 2, D: 1, E: 3 },
+    C: { A: 4, B: 1, D: 3 },
+    D: { B: 7, C: 3, G: 4, E: 1 },
+    E: { F: 6, G: 5, H: 1 },
+    H: { F: 1, G: 3 },
+    G: { H: 8 },
+    F: { H: 10 },
+  };
+
+  // Node coordinates
+  const coordinates = {};
+
+  pointJson.features.forEach((feature) => {
+    const node = feature.properties.node;
+    const coord = feature.geometry.coordinates;
+    coordinates[node] = [coord[1], coord[0]]; // Leaflet uses [lat, lng] order
+  });
+  //map initialization
+
+  var map = L.map("map").setView(coordinates["A"], 14);
+  //osm layer
+
+  var osm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  });
+  osm.addTo(map);
+  //   google map layer
+
+  var googleStreets = L.tileLayer(
+    "http://{s}.google.com/vt?lyrs=m&x={x}&y={y}&z={z}",
+    {
+      maxZoom: 20,
+      subdomains: ["mt0", "mt1", "mt2", "mt3"],
+    }
+  );
+  googleStreets.addTo(map);
+
+  // function drawGraph(graph, coordinates) {
+  //   // Add markers for each node
+  //   for (let node in coordinates) {
+  //     let marker = L.marker(coordinates[node]).addTo(map);
+  //     marker.bindPopup(`Node: ${node}`).openPopup();
+  //   }
+  // }
+
+  // // Draw edges between nodes
+  // for (let node in graph) {
+  //   for (let neighbor in graph[node]) {
+  //     // Draw line between node and neighbor
+  //     let latlngs = [coordinates[node], coordinates[neighbor]];
+  //     L.polyline(latlngs, { color: "blue" }).addTo(map);
+  //   }
+  // }
+  // drawGraph(graph, coordinates);
+
+  // Function to draw nodes and real-world routes between them
+  async function drawRealRoutes(graph, coordinates) {
+    for (let node in graph) {
+      if (coordinates[node]) {
+        for (let neighbor in graph[node]) {
+          if (coordinates[neighbor]) {
+            // Fetch real route between nodes from OpenRouteService
+            const route = await fetchRoute(
+              coordinates[node],
+              coordinates[neighbor]
+            );
+            if (route) {
+              L.polyline(route, { color: "red" }).addTo(map);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Fetch route from OpenRouteService
+  async function fetchRoute(start, end) {
+    const apiKey = "5b3ce3597851110001cf6248bfb11b0b069641f28f8ad94ac4b365e4"; // Replace with your OpenRouteService API key
+    const url = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${apiKey}&start=${start[1]},${start[0]}&end=${end[1]},${end[0]}`;
+    console.log("Fetching route URL:", url);
+    try {
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Response data:", data);
+
+      if (data.routes && data.routes.length > 0) {
+        const route = data.routes[0].geometry;
+
+        // Ensure route data is encoded and parse it properly
+        if (route) {
+          // Check if `L.Polyline.fromEncoded` is correct
+          return L.Polyline.fromEncoded(route).getLatLngs();
+        } else {
+          throw new Error("Route geometry not found in response.");
+        }
+      } else {
+        throw new Error("No routes found in response.");
+      }
+    } catch (error) {
+      console.error("Error fetching route:", error);
+      // Optional: Return an empty array or null to indicate no route found
+      return null;
+    }
+  }
+  // Draw the full graph on the map with real routes
+  drawRealRoutes(graph, coordinates);
+
+  // Dijkstra's Algorithm for finding the shortest path
+  function dijkstra(graph, start, end) {
+    let distances = {};
+    let prev = {};
+    let pq = new PriorityQueue();
+
+    distances[start] = 0;
+    pq.enqueue(start, 0);
+
+    for (let vertex in graph) {
+      if (vertex !== start) {
+        distances[vertex] = Infinity;
+      }
+      prev[vertex] = null;
+    }
+
+    while (!pq.isEmpty()) {
+      let minNode = pq.dequeue().element;
+      if (minNode === end) break;
+
+      for (let neighbor in graph[minNode]) {
+        let alt = distances[minNode] + graph[minNode][neighbor];
+        if (alt < distances[neighbor]) {
+          distances[neighbor] = alt;
+          prev[neighbor] = minNode;
+          pq.enqueue(neighbor, distances[neighbor]);
+        }
+      }
+    }
+
+    let path = [];
+    let u = end;
+    while (prev[u]) {
+      path.unshift(u);
+      u = prev[u];
+    }
+    if (u === start) path.unshift(u);
+    return path;
+  }
+
+  // PriorityQueue class implementation
+  class PriorityQueue {
+    constructor() {
+      this.collection = [];
+    }
+    enqueue(element, priority) {
+      let newItem = { element, priority };
+      if (this.isEmpty()) {
+        this.collection.push(newItem);
+      } else {
+        let added = false;
+        for (let i = 0; i < this.collection.length; i++) {
+          if (newItem.priority < this.collection[i].priority) {
+            this.collection.splice(i, 0, newItem);
+            added = true;
+            break;
+          }
+        }
+        if (!added) {
+          this.collection.push(newItem);
+        }
+      }
+    }
+    dequeue() {
+      return this.collection.shift();
+    }
+    isEmpty() {
+      return this.collection.length === 0;
+    }
+  }
+
+  // Visualizing the shortest path
+  let startNode = "A";
+  let endNode = "F";
+  let shortestPath = dijkstra(graph, startNode, endNode);
+
+  console.log("Shortest path: ", shortestPath);
+
+  let latlngs = shortestPath.map((node) => coordinates[node]);
+
+  let polyline = L.polyline(latlngs, { color: "red" }).addTo(map);
+  map.fitBounds(polyline.getBounds());
+
+  // Draw the full graph on the map
+  drawGraph(graph, coordinates);
+</script>
