@@ -5,7 +5,7 @@ const Route = require("./models/route"); // Adjust the path as needed
 const app = express();
 
 mongoose.connect(
-  "mongodb+srv://prakash11141:angryme@cluster0.fbsm3wg.mongodb.net/routes?retryWrites=true&w=majority"
+  "mongodb+srv://:@cluster0.fbsm3wg.mongodb.net/routes?retryWrites=true&w=majority"
 );
 
 app.post("/save-route", async (req, res) => {
