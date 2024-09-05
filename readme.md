@@ -71,6 +71,12 @@
   );
   googleStreets.addTo(map);
 
+  L.Routing.control({
+        waypoints: [startPoint, endPoint],
+        routeWhileDragging: true,
+        showAlternatives: true,
+      }).addTo(map);
+
   // function drawGraph(graph, coordinates) {
   //   // Add markers for each node
   //   for (let node in coordinates) {
@@ -113,7 +119,7 @@
   async function fetchRoute(start, end) {
     const apiKey = "5b3ce3597851110001cf6248bfb11b0b069641f28f8ad94ac4b365e4"; // Replace with your OpenRouteService API key
     const url = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${apiKey}&start=${start[1]},${start[0]}&end=${end[1]},${end[0]}`;
-    console.log("Fetching route URL:", url);
+    console.log('Fetching route URL:', url);
 
     try {
       const response = await fetch(url);

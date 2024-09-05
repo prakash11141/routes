@@ -31,16 +31,7 @@
 <script src="./data/point.js"></script>
 
 <script>
-  const graph = {
-    A: { B: 1, C: 2 },
-    B: { A: 2, D: 1, E: 3 },
-    C: { A: 4, B: 1, D: 3 },
-    D: { B: 7, C: 3, G: 4, E: 1 },
-    E: { F: 6, G: 5, H: 1 },
-    H: { F: 1, G: 3 },
-    G: { H: 8 },
-    F: { H: 10 },
-  };
+  const graph = {};
 
   // Node coordinates
   const coordinates = {};
@@ -49,6 +40,7 @@
     const node = feature.properties.node;
     const coord = feature.geometry.coordinates;
     coordinates[node] = [coord[1], coord[0]]; // Leaflet uses [lat, lng] order
+    console.log(coordinates);
   });
   //map initialization
 
@@ -71,72 +63,11 @@
   );
   googleStreets.addTo(map);
 
-  // function drawGraph(graph, coordinates) {
-  //   // Add markers for each node
-  //   for (let node in coordinates) {
-  //     let marker = L.marker(coordinates[node]).addTo(map);
-  //     marker.bindPopup(`Node: ${node}`).openPopup();
-  //   }
-  // }
-
-  // // Draw edges between nodes
-  // for (let node in graph) {
-  //   for (let neighbor in graph[node]) {
-  //     // Draw line between node and neighbor
-  //     let latlngs = [coordinates[node], coordinates[neighbor]];
-  //     L.polyline(latlngs, { color: "blue" }).addTo(map);
-  //   }
-  // }
-  // drawGraph(graph, coordinates);
-
-  // Function to draw nodes and real-world routes between them
-  async function drawRealRoutes(graph, coordinates) {
-    for (let node in graph) {
-      if (coordinates[node]) {
-        for (let neighbor in graph[node]) {
-          if (coordinates[neighbor]) {
-            // Fetch real route between nodes from OpenRouteService
-            const route = await fetchRoute(
-              coordinates[node],
-              coordinates[neighbor]
-            );
-            if (route) {
-              L.polyline(route, { color: "red" }).addTo(map);
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // Fetch route from OpenRouteService
-  async function fetchRoute(start, end) {
-    const apiKey = "5b3ce3597851110001cf6248bfb11b0b069641f28f8ad94ac4b365e4"; // Replace with your OpenRouteService API key
-    const url = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${apiKey}&start=${start[1]},${start[0]}&end=${end[1]},${end[0]}`;
-    console.log("Fetching route URL:", url);
-
-    try {
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log("Response data:", data);
-
-      if (data.routes && data.routes.length > 0) {
-        const route = data.routes[0].geometry;
-        return L.Polyline.fromEncoded(route).getLatLngs();
-      }
-    } catch (error) {
-      console.error("Error fetching route:", error);
-    }
-
-    return null;
-  }
-  // Draw the full graph on the map with real routes
-  drawRealRoutes(graph, coordinates);
+  L.Routing.control({
+    waypoints: [coordinates["A"], coordinates["H"]],
+    routeWhileDragging: true,
+    showAlternatives: true,
+  }).addTo(map);
 
   // Dijkstra's Algorithm for finding the shortest path
   function dijkstra(graph, start, end) {
