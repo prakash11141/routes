@@ -1,63 +1,26 @@
 const mongoose = require("mongoose");
 
-const routeSchema = new mongoose.Schema({
-  start: {
-    type: { type: String, default: "Point" },
-    coordinates: [Number], // [longitude, latitude]
-  },
-  end: {
-    type: { type: String, default: "Point" },
-    coordinates: [Number], // [longitude, latitude]
-  },
-  bbox: {
-    type: [Number], // [minLongitude, minLatitude, maxLongitude, maxLatitude]
-  },
-  features: [
-    {
-      type: {
-        type: String,
-      },
-      geometry: {
-        type: {
-          type: String,
-          default: "LineString",
-        },
-        coordinates: [[Number]], // array of coordinates
-      },
-      properties: {
-        segments: [
-          {
-            distance: Number,
-            duration: Number,
-            steps: [
-              {
-                distance: Number,
-                duration: Number,
-                instruction: String,
-                name: String,
-                type: String,
-                way_points: [Number],
-              },
-            ],
-          },
-        ],
-        summary: {
-          distance: Number,
-          duration: Number,
-        },
-        way_points: [Number],
-      },
-    },
-  ],
-  metadata: {
-    attribution: String,
-    service: String,
-    timestamp: Number,
-    query: Object,
-    engine: Object,
-  },
+const StepSchema = new mongoose.Schema({
+  distance: Number,
+  duration: Number,
+  type: Number,
+  instruction: String,
+  name: String,
+  way_points: [Number],
 });
 
-const Route = mongoose.model("Route", routeSchema);
+const SegmentSchema = new mongoose.Schema({
+  distance: Number,
+  duration: Number,
+  steps: [StepSchema],
+});
 
-module.exports = Route;
+const RouteSchema = new mongoose.Schema({
+  bbox: [Number],
+  distance: Number,
+  duration: Number,
+  segments: [SegmentSchema],
+  coordinates: [[Number]],
+});
+
+const Route = mongoose.model("Route", RouteSchema);
